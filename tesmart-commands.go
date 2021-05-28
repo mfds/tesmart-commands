@@ -3,7 +3,9 @@ package commands
 import (
 	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -38,6 +40,13 @@ type tesmartSwitch struct {
 
 func NewTesmartSwitch(host string) (*tesmartSwitch, error) {
 	t := tesmartSwitch{}
+
+	hasDebugFlag := flag.Bool("v", false, "enable debug messages")
+	flag.Parse()
+
+	if hasDebugFlag == nil || !(*hasDebugFlag) {
+		Debug.SetOutput(ioutil.Discard)
+	}
 
 	err := t.connect(host)
 	if err != nil {
@@ -97,7 +106,7 @@ func (t *tesmartSwitch) connect(host string) error {
 	}
 
 	t.conn = conn
-	Debug.Print("Connected")
+	Info.Printf("Connected to: %s", host)
 
 	t.responses = make(chan []byte, 1)
 	t.Responses = make(chan []byte, 1)
