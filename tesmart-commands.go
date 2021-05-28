@@ -177,7 +177,7 @@ func injectInputToPayload(payload []byte, input byte) []byte {
 	return command
 }
 
-func extractInput(response []byte) (int, error) {
+func ExtractInput(response []byte) (int, error) {
 	if isValidOutput(response) {
 		return int(response[4]) + 1, nil // input is zero based
 	}
