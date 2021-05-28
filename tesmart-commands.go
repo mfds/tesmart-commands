@@ -4,11 +4,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"os"
-	"time"
 )
 
 var (
@@ -24,9 +22,9 @@ var (
 )
 
 var (
-	Debug = log.New(os.Stdout, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Info  = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Debug = log.New(os.Stdout, "DEBUG: ", 0)
+	Info  = log.New(os.Stdout, "INFO: ", 0)
+	Error = log.New(os.Stderr, "ERROR: ", 0)
 )
 
 type tesmartSwitch struct {
@@ -34,6 +32,8 @@ type tesmartSwitch struct {
 
 	err       chan error
 	responses chan []byte
+	Responses chan []byte
+	sw        chan bool
 }
 
 func NewTesmartSwitch(host string) (*tesmartSwitch, error) {
@@ -88,7 +88,6 @@ func (t *tesmartSwitch) GetCurrentInput() (int, error) {
 	return extractInput(<-t.responses)
 }
 
-// do it properly
 func (t *tesmartSwitch) connect(host string) error {
 	Debug.Print("Connecting...")
 	conn, err := net.Dial("tcp", host)
@@ -100,25 +99,19 @@ func (t *tesmartSwitch) connect(host string) error {
 	t.conn = conn
 	Debug.Print("Connected")
 
-	t.responses = make(chan []byte, 2)
+	t.responses = make(chan []byte, 1)
+	t.Responses = make(chan []byte, 1)
 	t.err = make(chan error, 1)
-
-	go func() {
-		for {
-			fmt.Println("loopino")
-			err := <-t.err
-			fmt.Println("err")
-			if io.EOF == err {
-				fmt.Println("EOF")
-				return
-			}
-			t.connect(host)
-			return
-
-		}
-	}()
+	t.sw = make(chan bool, 1)
 
 	go t.receiveLoop()
+
+	go func() {
+		<-t.err
+		Debug.Println("Error detected, reconnecting...")
+		t.conn.Close()
+		go t.connect(host)
+	}()
 
 	return nil
 }
@@ -131,6 +124,7 @@ func (t *tesmartSwitch) send(command []byte) error {
 		Error.Printf("Failed to send command: %v", err)
 		return err
 	}
+	t.sw <- true
 
 	if bytesSent != 6 {
 		err := fmt.Errorf("wrong amount of byte sent: %d. Expected 6", bytesSent)
@@ -142,39 +136,29 @@ func (t *tesmartSwitch) send(command []byte) error {
 	return nil
 }
 
-// DO IT PROPERLY
 func (t *tesmartSwitch) receiveLoop() {
-	log.Print("Receive loop start")
+	Debug.Print("Receive loop start")
 	for {
-		log.Print("reading")
+		Debug.Print("Reading message")
 		response := make([]byte, 6)
 
-		err := t.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-		if err != nil {
-			log.Println("SetReadDeadline failed:", err)
-			// do something else, for example create new conn
-			return
-		}
-
 		read, err := t.conn.Read(response)
-
-		log.Printf("read %d bytes: %s", read, hex.EncodeToString(response))
+		Debug.Printf("Read %d bytes: %s", read, hex.Dump(response))
 		if err != nil {
-			log.Printf("Failed to fetch: %v", err)
-			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				log.Println("read timeout:", err)
-				// return
-			}
+			Debug.Printf("Failed to read data from socket: %v", err)
 
-			// if io.EOF == err {
-			// 	return
-			// }
 			t.err <- err
 			break
 		}
 
-		t.responses <- response
+		select {
+		case <-t.sw:
+			t.responses <- response
+		default:
+			t.Responses <- response
+		}
 	}
+	Debug.Print("Receive loop end")
 }
 
 func injectInputToPayload(payload []byte, input byte) []byte {
