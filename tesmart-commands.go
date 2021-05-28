@@ -63,7 +63,7 @@ func (t *tesmartSwitch) SwitchInput(input int) (int, error) {
 
 	command := injectInputToPayload(SWITCH_INPUT, byte(input))
 	t.send(command)
-	return extractInput(<-t.responses)
+	return ExtractInput(<-t.responses)
 }
 
 func (t *tesmartSwitch) SetLedTimeout(input int) (int, error) {
@@ -73,7 +73,7 @@ func (t *tesmartSwitch) SetLedTimeout(input int) (int, error) {
 
 	command := injectInputToPayload(GET_CURRENT_INPUT, byte(input))
 	t.send(command)
-	return extractInput(<-t.responses)
+	return ExtractInput(<-t.responses)
 }
 
 func (t *tesmartSwitch) MuteBuzzer() error {
@@ -94,7 +94,7 @@ func (t *tesmartSwitch) DisableAutoInputDetection() error {
 
 func (t *tesmartSwitch) GetCurrentInput() (int, error) {
 	t.send(GET_CURRENT_INPUT)
-	return extractInput(<-t.responses)
+	return ExtractInput(<-t.responses)
 }
 
 func (t *tesmartSwitch) connect(host string) error {
