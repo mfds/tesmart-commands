@@ -218,7 +218,7 @@ func ExtractInput(response []byte) (int, error) {
 func isValidOutput(output []byte) bool {
 	Debug.Printf("isValidOutput = %s", printHex(output))
 
-	return len(output) != 6 &&
+	return len(output) == 6 &&
 		output[0] == 0xAA &&
 		output[1] == 0xBB &&
 		output[2] == 0x03 &&
