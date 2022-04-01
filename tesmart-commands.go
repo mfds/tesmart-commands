@@ -60,8 +60,7 @@ func (t *tesmartSwitch) SwitchInput(input int) error {
 	}
 
 	command := injectInputToPayload(SWITCH_INPUT, byte(input))
-	t.send(command)
-	return nil
+	return t.send(command)
 }
 
 func (t *tesmartSwitch) SetLedTimeout(input int) error {
@@ -70,8 +69,7 @@ func (t *tesmartSwitch) SetLedTimeout(input int) error {
 	}
 
 	command := injectInputToPayload(GET_CURRENT_INPUT, byte(input))
-	t.send(command)
-	return nil
+	return t.send(command)
 }
 
 func (t *tesmartSwitch) MuteBuzzer() error {
